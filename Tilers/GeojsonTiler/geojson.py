@@ -377,29 +377,29 @@ class Geojsons(ObjectsToTile):
                         if(geojson.parse_geojson(feature,properties)):
                             geojsons.append(geojson)
 
-                    if 'road' in group:
-                        geojsons = Geojsons.group_features_by_roads(geojsons,path)
-                    elif 'cube' in group:
-                        try:
-                            size = int(group[group.index('cube') + 1])
-                        except:
-                            size = Geojsons.defaultGroupOffset
-                        geojsons = Geojsons.group_features_by_cube(geojsons,size)
+        if 'road' in group:
+            geojsons = Geojsons.group_features_by_roads(geojsons,path)
+        elif 'cube' in group:
+            try:
+                size = int(group[group.index('cube') + 1])
+            except:
+                size = Geojsons.defaultGroupOffset
+            geojsons = Geojsons.group_features_by_cube(geojsons,size)
 
-                    for geojson in geojsons:
-                        #Create geometry as expected from GLTF from an geojson file
-                        if(geojson.parse_geom()):
-                            objects.append(geojson)
+        for geojson in geojsons:
+            #Create geometry as expected from GLTF from an geojson file
+            if(geojson.parse_geom()):
+                objects.append(geojson)
 
-                            if not obj_name == '':
-                                # Add triangles and vertices to create an obj
-                                for vertice in geojson.vertices:
-                                    vertices.append(vertice)
-                                for triangle in geojson.triangles:
-                                    triangles.append(triangle + vertice_offset)
-                                vertice_offset += len(geojson.vertices)
-                                for i in range(0,len(geojson.center)):
-                                    center[i] += geojson.center[i]
+                if not obj_name == '':
+                    # Add triangles and vertices to create an obj
+                    for vertice in geojson.vertices:
+                        vertices.append(vertice)
+                    for triangle in geojson.triangles:
+                        triangles.append(triangle + vertice_offset)
+                    vertice_offset += len(geojson.vertices)
+                    for i in range(0,len(geojson.center)):
+                        center[i] += geojson.center[i]
 
         if not obj_name == '':
             center[:] = [c / len(objects) for c in center]
