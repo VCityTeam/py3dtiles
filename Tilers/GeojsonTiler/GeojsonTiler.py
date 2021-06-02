@@ -10,8 +10,7 @@ from py3dtiles import B3dm, BatchTable, BoundingVolumeBox, GlTF
 from py3dtiles import Tile, TileSet
 from Tilers.kd_tree import kd_tree
 
-
-from geojson import Geojson, Geojsons
+from Tilers.GeojsonTiler.geojson import Geojson, Geojsons
 
 
 
@@ -182,7 +181,6 @@ def main():
                 folder_name = path.split('/')[-1]
                 print("tilset in geojson_tilesets/" + folder_name)
                 tileset.write_to_directory("geojson_tilesets/" + folder_name)
-
 
 if __name__ == '__main__':
     main()

@@ -11,7 +11,7 @@ from rdp import rdp
 import os
 from os import listdir
 from os.path import isfile, join
-from PolygonDetection import PolygonDetector
+from Tilers.GeojsonTiler.PolygonDetection import PolygonDetector
 
 
 # The GeoJson file contains the ground surface of urban elements, mainly buildings.
