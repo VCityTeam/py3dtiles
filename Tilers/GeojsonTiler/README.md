@@ -61,9 +61,20 @@ python Tilers/GeojsonTiler/GeojsonTiler.py --paths <path> --group cube 100
 This line will call the tiler and group features into cubes with size _100 x 100 x 100_.
 
 #### Road
+___Warning__ this method takes a really long computation time, it is thus advised to use the second solution._
 The 'road' group method will create "_islets_" based on roads. The roads must be Geojson files containing _coordinates_ as _LineString_ and intersections between roads. The program will [create polygons](https://web.ist.utl.pt/alfredo.ferreira/publications/12EPCG-PolygonDetection.pdf) from a graph made with roads: each intersection of the roads is a vertex, each segment of road between two intersections is an edge.  
 The group method can be used with _--group road_:
 ```
 python Tilers/GeojsonTiler/GeojsonTiler.py --paths ../../geojson/ --group road
 ```
 The roads will be load from the directory _roads_ in the <path>. This command will use _road group method_ with the roads file in ../../geojson/roads/
+
+#### Polygon
+This solution follow the same process as the solution above, but in this case the polygons are __pre-computed__ with QGIS. In fact, the polygon detection described above takes a really long time when there is more than ~1000 vertices in the graph. Computing the polygons with QGIS before and loading them as a Geojson file at runtime is way faster.  
+The group method can be used with _--group polygon_:
+```
+python Tilers/GeojsonTiler/GeojsonTiler.py --paths ../../geojson/ --group polygon
+```
+The roads will be load from the directory _polygons_ in the <path>. This command will use _polygon group method_ with the polygons file in ../../geojson/polygons/
+  
+To polygonize the roads on QGIS, use the tool _Polygonize_ (_Processing --> Toolbox --> Vector Geometry --> Polygonize_)
