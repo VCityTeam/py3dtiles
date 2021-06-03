@@ -5,7 +5,7 @@ import json
 from py3dtiles import BoundingVolumeBox, TriangleSoup
 from Tilers.object_to_tile import ObjectToTile, ObjectsToTile
 from scipy.spatial import ConvexHull
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 from rdp import rdp
 
 import os
@@ -92,12 +92,13 @@ class Geojson(ObjectToTile):
 
 
     # Flatten list of lists (ex: [[a, b, c], [d, e, f], g]) to create a list (ex: [a, b, c, d, e, f, g])
-    def flatten_list(self,list_of_lists):
+    @staticmethod
+    def flatten_list(list_of_lists):
         if len(list_of_lists) == 0:
             return list_of_lists
         if isinstance(list_of_lists[0], list):
-            return self.flatten_list(list_of_lists[0]) + self.flatten_list(list_of_lists[1:])
-        return list_of_lists[:1] + self.flatten_list(list_of_lists[1:])
+            return Geojson.flatten_list(list_of_lists[0]) + Geojson.flatten_list(list_of_lists[1:])
+        return list_of_lists[:1] + Geojson.flatten_list(list_of_lists[1:])
 
     def parse_geojson(self,feature,properties):
         # Current feature number
@@ -133,7 +134,7 @@ class Geojson(ObjectToTile):
         coordinates = feature['geometry']['coordinates']
 
         try:
-            coords = self.flatten_list(coordinates)
+            coords = Geojson.flatten_list(coordinates)
             # Group coords into (x,y) arrays, the z will always be the same z
             # The last point in features is always the same as the first, so we remove the last point
             coords = [coords[n:n+2] for n in range(0, len(coords)-3, 3)]
@@ -257,6 +258,26 @@ class Geojsons(ObjectsToTile):
         for i in range(0,len(coordinate)):
             rounded_coord[i] = base * round(coordinate[i]/base)
         return rounded_coord
+    @staticmethod
+    def group_features_by_polygons(features,path):
+        try:
+            polygon_path = os.path.join(path,"polygons")
+            polygon_dir = listdir(polygon_path)
+        except:
+            print("No directory called 'polygons' in",path,". Please, place the polygons to read in",polygon_path)
+            print("Exiting")
+            sys.exit(1)
+        polygons = list()
+        for polygon_file in polygon_dir:
+            if(".geojson" in polygon_file or ".json" in polygon_file):
+                with open(os.path.join(polygon_path,polygon_file)) as f:
+                    gjContent = json.load(f)
+                for feature in gjContent['features']:
+                    coords = feature['geometry']['coordinates']
+                    coords = Geojson.flatten_list(coords)
+                    coords = [coords[n:n+2] for n in range(0, len(coords)-2, 2)]
+                    polygons.append(Polygon(coords))
+        return Geojsons.distribute_features_in_polygons(features,polygons)
 
     @staticmethod
     def group_features_by_roads(features,path):
@@ -279,27 +300,7 @@ class Geojsons(ObjectsToTile):
 
         p = PolygonDetector(lines)
         polygons = p.create_polygons()
-
-        features_dict = {}
-        features_without_poly = list()
-        for i in range(0,len(features)):
-            p = Point(features[i].center)
-            in_polygon = False
-            for index, polygon in enumerate(polygons):
-                if p.within(polygon):
-                    if index in features_dict:
-                        features_dict[index].append(i)
-                    else:
-                        features_dict[index] = [i]
-                    in_polygon = True
-                    break
-            if not in_polygon:
-                features_without_poly.append(features[i])
-            
-        
-        grouped_features = Geojsons.group_features(features,features_dict)
-        print("Features grouped")
-        return grouped_features + features_without_poly
+        return Geojsons.distribute_features_in_polygons(features,polygons)
 
     # Group features which are in the same cube of size 'size'
     @staticmethod
@@ -342,6 +343,28 @@ class Geojsons(ObjectsToTile):
         return grouped_features
 
     @staticmethod
+    def distribute_features_in_polygons(features,polygons):
+        features_dict = {}
+        features_without_poly = list()
+        for i in range(0,len(features)):
+            p = Point(features[i].center)
+            in_polygon = False
+            for index, polygon in enumerate(polygons):
+                if p.within(polygon):
+                    if index in features_dict:
+                        features_dict[index].append(i)
+                    else:
+                        features_dict[index] = [i]
+                    in_polygon = True
+                    break
+            if not in_polygon:
+                features_without_poly.append(features[i])
+            
+        
+        grouped_features = Geojsons.group_features(features,features_dict)
+        return grouped_features + features_without_poly
+
+    @staticmethod
     def retrieve_geojsons(path, group, properties, obj_name, objects=list()):
         """
         :param path: a path to a directory
@@ -379,6 +402,8 @@ class Geojsons(ObjectsToTile):
 
         if 'road' in group:
             geojsons = Geojsons.group_features_by_roads(geojsons,path)
+        elif 'polygon' in group:
+            geojsons = Geojsons.group_features_by_polygons(geojsons,path)
         elif 'cube' in group:
             try:
                 size = int(group[group.index('cube') + 1])
