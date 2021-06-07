@@ -11,7 +11,7 @@ from rdp import rdp
 import os
 from os import listdir
 from os.path import isfile, join
-from Tilers.GeojsonTiler.PolygonDetection import PolygonDetector
+from PolygonDetection import PolygonDetector
 
 
 # The GeoJson file contains the ground surface of urban elements, mainly buildings.
@@ -165,7 +165,7 @@ class Geojson(ObjectToTile):
         # If the feature has at least 4 coords, create a convex hull
         # The convex hull reduces the number of points and the level of detail
         if len(coords) >= 4:
-            #coords = rdp(coords)
+            # coords = rdp(coords)
             hull = ConvexHull(coords)
             coords = [coords[i] for i in reversed(hull.vertices)]
         
@@ -228,6 +228,8 @@ class Geojsons(ObjectsToTile):
     """
 
     defaultGroupOffset = 50
+    features_dict = {}
+    base_features = list()
 
     def __init__(self,objs=None):
         super().__init__(objs)
@@ -320,13 +322,15 @@ class Geojsons(ObjectsToTile):
     def group_features(features, dictionary):
         k = 0
         grouped_features = list()
+        grouped_features_dict = {}
         for key in dictionary:
             geojson = Geojson("group"+str(k))
             z = 9999
             height = 0
             coords = list()
-            
+            grouped_features_dict[k] = []
             for j in dictionary[key]:
+                grouped_features_dict[k].append(j)
                 height += features[j].height
                 if z > features[j].z:
                     z = features[j].z
@@ -340,6 +344,7 @@ class Geojsons(ObjectsToTile):
             geojson.center = [center[0], center[1], center[2] + geojson.height / 2]
             grouped_features.append(geojson)
             k += 1
+        Geojsons.features_dict = grouped_features_dict
         return grouped_features
 
     @staticmethod
@@ -362,7 +367,7 @@ class Geojsons(ObjectsToTile):
             
         
         grouped_features = Geojsons.group_features(features,features_dict)
-        return grouped_features + features_without_poly
+        return grouped_features
 
     @staticmethod
     def retrieve_geojsons(path, group, properties, obj_name, objects=list()):
@@ -376,7 +381,7 @@ class Geojsons(ObjectsToTile):
 
         vertices = list()
         triangles = list()
-        geojsons = list()
+        features = list()
         vertice_offset = 1
         center = [0,0,0]
 
@@ -398,33 +403,41 @@ class Geojsons(ObjectsToTile):
                             k += 1
                         geojson = Geojson(feature_id)
                         if(geojson.parse_geojson(feature,properties)):
-                            geojsons.append(geojson)
+                            features.append(geojson)
 
         if 'road' in group:
-            geojsons = Geojsons.group_features_by_roads(geojsons,path)
+            grouped_features = Geojsons.group_features_by_roads(features,path)
         elif 'polygon' in group:
-            geojsons = Geojsons.group_features_by_polygons(geojsons,path)
+            grouped_features = Geojsons.group_features_by_polygons(features,path)
         elif 'cube' in group:
             try:
                 size = int(group[group.index('cube') + 1])
             except:
                 size = Geojsons.defaultGroupOffset
-            geojsons = Geojsons.group_features_by_cube(geojsons,size)
-
-        for geojson in geojsons:
+            grouped_features = Geojsons.group_features_by_cube(features,size)
+        else:
+            grouped_features = features
+        
+        if True:
+            for geojson in features:
             #Create geometry as expected from GLTF from an geojson file
-            if(geojson.parse_geom()):
-                objects.append(geojson)
+                if(geojson.parse_geom()):
+                    Geojsons.base_features.append(geojson)
+        print("GROUPED  ")
+        for feature in grouped_features:
+            #Create geometry as expected from GLTF from an geojson file
+            if(feature.parse_geom()):
+                objects.append(feature)
 
                 if not obj_name == '':
                     # Add triangles and vertices to create an obj
-                    for vertice in geojson.vertices:
+                    for vertice in feature.vertices:
                         vertices.append(vertice)
-                    for triangle in geojson.triangles:
+                    for triangle in feature.triangles:
                         triangles.append(triangle + vertice_offset)
-                    vertice_offset += len(geojson.vertices)
-                    for i in range(0,len(geojson.center)):
-                        center[i] += geojson.center[i]
+                    vertice_offset += len(feature.vertices)
+                    for i in range(0,len(feature.center)):
+                        center[i] += feature.center[i]
 
         if not obj_name == '':
             center[:] = [c / len(objects) for c in center]

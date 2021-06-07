@@ -10,7 +10,7 @@ from py3dtiles import B3dm, BatchTable, BoundingVolumeBox, GlTF
 from py3dtiles import Tile, TileSet
 from Tilers.kd_tree import kd_tree
 
-from Tilers.GeojsonTiler.geojson import Geojson, Geojsons
+from geojson import Geojson, Geojsons
 
 
 
@@ -126,10 +126,14 @@ def from_geojson_directory(path, group, properties, obj_name):
         return None
     else:
         print(str(len(objects)) + " features parsed")
-    
+    print(len(Geojsons.base_features))
     # Lump out objects in pre_tiles based on a 2D-Tree technique:
-    pre_tileset = kd_tree(objects,200)       
-
+    #pre_tileset = kd_tree(objects,200)
+    derived = objects.__class__
+    pre_tileset = derived()
+    for ob in objects:
+        pre_tileset.append([ob])
+    #pre_tileset = objects.__class__
     # Get the centroid of the tileset and translate all of the geojson 
     # by this centroid
     # which will be later added in the transform part of each tiles
@@ -138,10 +142,10 @@ def from_geojson_directory(path, group, properties, obj_name):
     
     tileset = TileSet()
 
-    for pre_tile in pre_tileset:
+    for index, pre_tile in enumerate(pre_tileset):
 
         tile = Tile()  
-        tile.set_geometric_error(500)
+        tile.set_geometric_error(50)
 
         tile_content_b3dm = create_tile_content(pre_tile)
         tile.set_content(tile_content_b3dm)
@@ -149,12 +153,34 @@ def from_geojson_directory(path, group, properties, obj_name):
                     0, 1, 0, 0,
                     0, 0, 1, 0,
                     centroid[0], centroid[1], centroid[2], 1])
-
+        tile.set_refine_mode('REPLACE')
         bounding_box = BoundingVolumeBox()        
         for geojson in pre_tile:
             bounding_box.add(geojson.get_bounding_volume_box()) 
         tile.set_bounding_volume(bounding_box)
-        
+
+        child = Tile()
+        child.set_geometric_error(50)
+        child_features = [Geojsons.base_features[i] for i in Geojsons.features_dict[index]]
+        gjs = Geojsons(child_features)
+        c_derived = objects.__class__
+        child_pre_tile = c_derived()
+        for gj in gjs:
+            child_pre_tile.append(gj)
+        gjs.translate_tileset(centroid)
+        child_content_b3dm = create_tile_content(child_pre_tile)
+        child.set_content(child_content_b3dm)
+        child.set_transform([1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1])
+        child.set_refine_mode('REPLACE')
+        bounding_box = BoundingVolumeBox()        
+        for geojson in child_pre_tile:
+            bounding_box.add(geojson.get_bounding_volume_box()) 
+        child.set_bounding_volume(bounding_box)
+        tile.add_child(child)
+
         tileset.add_tile(tile)
 
     return tileset
