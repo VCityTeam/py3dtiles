@@ -1,5 +1,4 @@
-Note: all development are now done in upstream repository: https://gitlab.com/py3dtiles/py3dtiles
-
+⚠️ Project migrated to : https://gitlab.com/py3dtiles/py3dtiles ⚠️
 
 .. image:: https://travis-ci.org/Oslandia/py3dtiles.svg?branch=master
     :target: https://travis-ci.org/Oslandia/py3dtiles
