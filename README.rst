@@ -1,3 +1,6 @@
+Note: all development are now done in upstream repository: https://gitlab.com/py3dtiles/py3dtiles
+
+
 .. image:: https://travis-ci.org/Oslandia/py3dtiles.svg?branch=master
     :target: https://travis-ci.org/Oslandia/py3dtiles
 
@@ -24,7 +27,7 @@ py3dtiles is a Python tool and library for manipulating `3D Tiles`_.
 
 py3dtiles is distributed under the Apache 2 Licence.
 
-Gitlab repository: https://gitlab.com/Oslandia/py3dtiles
+Gitlab repository: https://gitlab.com/py3dtiles/py3dtiles
 
 Documentation : 
 
