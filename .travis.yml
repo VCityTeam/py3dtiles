@@ -25,14 +25,47 @@ jobs:
         - py3dtiles info tests/pointCloudRGB.pnts
     - stage: "Markdown link checks"
       language: node_js
-      node_js: 12
+      node_js: 16
       script:
+        - npm --version
         - npm install --global remark-cli remark-validate-links
-        - remark -u validate-links .
         - |
-          export FAILURE_THRESHOLD=1
-          export warnings=`remark -u validate-links . 2>&1 | grep warning | grep "Link to unknown" | wc -l`
+          export problems=`find . -name "*.md" | grep " "| wc -l`
+          if [ $problems -gt 0 ]; then
+            echo "The following files have whitespace in their name: fix that !"
+            find . -name "*.md" | grep " "
+            exit 1;
+          fi
+        # When an absolute markdown link is found (e.g. "/Readme.md")
+        # replace it (overwrite the file) with a full URL (referencing
+        # the repository, refer to BASE_URI variable) link 
+        # (e.g "https://github.com/VCityTeam/VCity/blob/master/Readme.md")
+        - |
+          export BASE_URI='https://github.com/VCityTeam/VCity/blob/master'
+          files=$(find . -name '*.md')
+          for f in $files
+          do
+            grep -E '\[{1}.*\]{1}\({1}/{1}.*\){1}' "$f" | sed -i "s|](/|]($BASE_URI/|g" "$f"
+          done
+        - remark -u validate-links . > validate.logs 2>&1
+        # The grep command exits with 1 when no lines are selected which in turn
+        # will flag the CI job as failing (which is false-positive because we are 
+        # happy when the are no issues at all). The "tee" command is used to trap
+        # that special case (refer to 
+        #   https://stackoverflow.com/questions/65420781/how-to-trap-on-exit-1-only-in-bash
+        #   https://stackoverflow.com/questions/1221833/pipe-output-and-capture-exit-status-in-bash
+        - grep -v "no issues found" validate.logs | tee
+        - |
+          export FAILURE_THRESHOLD=2
+          export warnings=`grep warning validate.logs | grep -E "Link to unknown|Cannot find file|Cannot find heading" | wc -l`
+          echo "Number of warnings found: " $warnings
+        # Because of logs truncation issues (refer to
+        #   https://travis-ci.community/t/logs-truncated-every-failed-build/7159 ), 
+        # we cannot report failure (with "exit 1") within the above command. We 
+        # alas thus have to repeat the counting (not DRY) of warnings
+        - |
+          export FAILURE_THRESHOLD=2
+          export warnings=`grep warning validate.logs | grep -E "Link to unknown|Cannot find file|Cannot find heading" | wc -l`
           if [ $warnings -gt $FAILURE_THRESHOLD ]; then
             exit 1;
           fi
-
